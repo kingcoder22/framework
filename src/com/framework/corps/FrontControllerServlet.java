@@ -40,7 +40,6 @@ public class FrontControllerServlet extends HttpServlet{
         System.out.println("Contexte: " + contexte);
         System.out.println("Paramètres: " + parametres);
         System.out.println("Fin de la capture d'URL");
-        System.out.println("pull request en cours");
 
         out.println("<hr/>");
         out.println("<p>Cette page a ete genere par FrontControllerServlet</p>");
