@@ -3,9 +3,19 @@ package com.framework.corps;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FrontControllerServlet extends HttpServlet{
+    List<String> controllers = new ArrayList<>();
+
+    @Override
+    public void init(){
+        // Scanner de classes désactivé (besoin de réflexion supprimé)
+        System.out.println("FrontControllerServlet initialisé sans Reflections.");
+    }
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException{
         String uri = req.getRequestURI();
@@ -32,7 +42,12 @@ public class FrontControllerServlet extends HttpServlet{
         out.println("<li><strong>Paramètres :</strong> " + (parametres != null ? parametres : "aucune") + "</li>");
         out.println("</ul>");
 
-
+        out.println("<h1> Liste des controllers utilisant l'annotation @Controller</h1>");
+        out.println("<ul>");
+        for (String controller : controllers) {
+            out.println("<li>" + controller + "</li>");
+        }
+        out.println("</ul>");
         System.out.println("url capturee");
         System.out.println("URI: " + uri);
         System.out.println("URL: " + url);
@@ -52,4 +67,3 @@ public class FrontControllerServlet extends HttpServlet{
         doGet(req, resp);
     }
 }
-
