@@ -8,7 +8,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +30,7 @@ public class FrontControllerServlet extends HttpServlet {
                 File dir = new File(URLDecoder.decode(roots.nextElement().getFile(), StandardCharsets.UTF_8));
                 scanClasses(dir, "controllerpackage");
             }
+            int i = 0;
         } catch (Exception e) {}
     }
     // public void getClasses(String packageName){
