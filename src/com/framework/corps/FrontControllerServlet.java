@@ -51,7 +51,7 @@ public class FrontControllerServlet extends HttpServlet {
     //     }
     // }
 
-    private void scanClasses(File dir, String pkg) {
+    public void scanClasses(File dir, String pkg) {
         if (dir == null || !dir.exists()) return;
         for (File f : dir.listFiles()) {
             if (f.isDirectory()) {
@@ -107,7 +107,16 @@ public class FrontControllerServlet extends HttpServlet {
         String path = uri.substring(contexte.length());
         if (mappings.containsKey(path)) {
             Method method = mappings.get(path);
+            String controllerName = method.getDeclaringClass().getSimpleName();
+            Object controller = controllerss.get(controllerName);
             out.println("<p>URL trouve , Methode : </p> " + mappings.get(path).getName());
+
+             try {
+                method.invoke(controller);
+            } catch (Exception e) {
+                e.printStackTrace();
+                out.println("Erreur: " + e.getMessage());
+            }
         } else {
             out.println("<p>URLs disponibles:</p><ul>");
             for(String controllerr : controllers){
