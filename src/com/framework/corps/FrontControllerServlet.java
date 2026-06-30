@@ -137,7 +137,5 @@ public class FrontControllerServlet extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         doGet(req, resp);
-        int i = 0;
-        int j = 0;
     }
 }
