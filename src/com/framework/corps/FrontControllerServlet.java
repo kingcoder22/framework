@@ -8,7 +8,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +16,13 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import mg.itu.framework.controller.Controller;
+import mg.itu.framework.exception.DuplicateUrlException;
+import mg.itu.framework.mapping.Methode;
+import mg.itu.framework.mapping.UrlMethod;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
-    Map<String, Method> mappings = new HashMap<>();
+    Map<UrlMethod, Methode> mappings = new HashMap<>();
     Map<String, Object> controllerss = new HashMap<>();
 
     @Override
@@ -31,7 +33,12 @@ public class FrontControllerServlet extends HttpServlet {
                 File dir = new File(URLDecoder.decode(roots.nextElement().getFile(), StandardCharsets.UTF_8));
                 scanClasses(dir, "controllerpackage");
             }
-        } catch (Exception e) {}
+            int i = 0;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     // public void getClasses(String packageName){
     //     try{
@@ -51,7 +58,7 @@ public class FrontControllerServlet extends HttpServlet {
     //     }
     // }
 
-    private void scanClasses(File dir, String pkg) {
+    public void scanClasses(File dir, String pkg) {
         if (dir == null || !dir.exists()) return;
         for (File f : dir.listFiles()) {
             if (f.isDirectory()) {
@@ -66,11 +73,24 @@ public class FrontControllerServlet extends HttpServlet {
                         controllerss.put(clazz.getSimpleName(), instance);
                         for (Method m : clazz.getDeclaredMethods()) {
                             if (m.isAnnotationPresent(com.framework.Mapping.UrlMapping.class)) {
-                                mappings.put(m.getAnnotation(com.framework.Mapping.UrlMapping.class).value(), m);
+                                com.framework.Mapping.UrlMapping annotation = m.getAnnotation(com.framework.Mapping.UrlMapping.class);
+                                String url = annotation.value();
+                                String httpMethod = annotation.method();
+                                UrlMethod urlMethod = new UrlMethod(url, httpMethod);
+                                if (mappings.containsKey(urlMethod)) {
+                                    throw new DuplicateUrlException(
+                                        "Duplicate URL mapping: " + url + " with method " + httpMethod
+                                    );
+                                }
+                                mappings.put(urlMethod, new Methode(clazz.getSimpleName(), m.getName()));
                             }
                         }
                     }
-                } catch (Exception e) {}
+                } catch (DuplicateUrlException e) {
+                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -105,16 +125,28 @@ public class FrontControllerServlet extends HttpServlet {
         out.println("<hr/><p>Genere par FrontControllerServlet</p></body></html>");
 
         String path = uri.substring(contexte.length());
-        if (mappings.containsKey(path)) {
-            Method method = mappings.get(path);
-            out.println("<p>URL trouve , Methode : </p> " + mappings.get(path).getName());
+        UrlMethod urlMethod = new UrlMethod(path, req.getMethod());
+        if (mappings.containsKey(urlMethod)) {
+            Methode methode = mappings.get(urlMethod);
+            String controllerName = methode.getClassName();
+            Object controller = controllerss.get(controllerName);
+            out.println("<p>URL trouve , Methode : </p> " + methode.getMethodName());
+
+             try {
+                Class<?> clazz = controller.getClass();
+                Method method = clazz.getDeclaredMethod(methode.getMethodName());
+                method.invoke(controller);
+            } catch (Exception e) {
+                e.printStackTrace();
+                out.println("Erreur: " + e.getMessage());
+            }
         } else {
             out.println("<p>URLs disponibles:</p><ul>");
             for(String controllerr : controllers){
                 out.println("<p>Controller : " + controllerr + "</p>");
             }
-            for (String urls : mappings.keySet()) {
-                out.println("<li><strong>URL :</strong> " + urls + " - <strong>Méthode :</strong> " + mappings.get(urls).getName() + "</li>");
+            for (UrlMethod urls : mappings.keySet()) {
+                out.println("<li><strong>URL :</strong> " + urls.getUrl() + " - <strong>Méthode HTTP :</strong> " + urls.getMethod() + " - <strong>Méthode Java :</strong> " + mappings.get(urls).getMethodName() + "</li>");
             }
             out.println("</ul>");
         }
