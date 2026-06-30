@@ -28,6 +28,7 @@ public class FrontControllerServlet extends HttpServlet {
     @Override
     public void init() {
         try {
+            int i = 0;
             Enumeration<java.net.URL> roots = Thread.currentThread().getContextClassLoader().getResources("controllerpackage");
             while (roots.hasMoreElements()) {
                 File dir = new File(URLDecoder.decode(roots.nextElement().getFile(), StandardCharsets.UTF_8));
