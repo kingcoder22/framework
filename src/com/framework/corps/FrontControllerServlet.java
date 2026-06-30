@@ -33,32 +33,14 @@ public class FrontControllerServlet extends HttpServlet {
                 File dir = new File(URLDecoder.decode(roots.nextElement().getFile(), StandardCharsets.UTF_8));
                 scanClasses(dir, "controllerpackage");
             }
-            int i = 0;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    // public void getClasses(String packageName){
-    //     try{
-    //         String path = packageName.replace('.','/');
-    //         URL ressource = Thread.currentThread().getContextClassLoader().getResources(path);
 
-    //         File directory = new File(ressource.getFile());
-
-    //         for(File file : directory.listFiles()){
-    //             if(file.getName().endsWith(".class")){
-    //                 String className = packageName + "." + file.getName().replace(".class", "");
-    //                 controllers.add(className);
-    //             }
-    //         }
-    //     } catch(Exception e){
-    //         e.printStackTrace();
-    //     }
-    // }
-
-    public void scanClasses(File dir, String pkg) {
+    private void scanClasses(File dir, String pkg) {
         if (dir == null || !dir.exists()) return;
         for (File f : dir.listFiles()) {
             if (f.isDirectory()) {
@@ -130,9 +112,9 @@ public class FrontControllerServlet extends HttpServlet {
             Methode methode = mappings.get(urlMethod);
             String controllerName = methode.getClassName();
             Object controller = controllerss.get(controllerName);
-            out.println("<p>URL trouve , Methode : </p> " + methode.getMethodName());
+            out.println("<p>URL trouve, Methode : </p> " + methode.getMethodName());
 
-             try {
+            try {
                 Class<?> clazz = controller.getClass();
                 Method method = clazz.getDeclaredMethod(methode.getMethodName());
                 method.invoke(controller);
@@ -142,7 +124,7 @@ public class FrontControllerServlet extends HttpServlet {
             }
         } else {
             out.println("<p>URLs disponibles:</p><ul>");
-            for(String controllerr : controllers){
+            for (String controllerr : controllers) {
                 out.println("<p>Controller : " + controllerr + "</p>");
             }
             for (UrlMethod urls : mappings.keySet()) {
