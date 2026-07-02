@@ -40,7 +40,7 @@ public class FrontControllerServlet extends HttpServlet {
         }
     }
 
-    public void scanClasses(File dir, String pkg) {
+    private void scanClasses(File dir, String pkg) {
         if (dir == null || !dir.exists()) return;
         for (File f : dir.listFiles()) {
             if (f.isDirectory()) {
@@ -137,6 +137,5 @@ public class FrontControllerServlet extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         doGet(req, resp);
-        int i = 0;
     }
 }
