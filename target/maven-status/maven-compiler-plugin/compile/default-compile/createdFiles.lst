@@ -1,6 +1,12 @@
+<<<<<<< HEAD
+com\framework\corps\FrontControllerServlet.class
+mg\itu\framework\controller\Controller.class
+com\framework\Mapping\UrlMapping.class
+=======
 mg/itu/framework/exception/DuplicateUrlException.class
 mg/itu/framework/mapping/Methode.class
 mg/itu/framework/controller/Controller.class
 com/framework/corps/FrontControllerServlet.class
 mg/itu/framework/mapping/UrlMethod.class
 com/framework/Mapping/UrlMapping.class
+>>>>>>> db382691bd56075f868b61b145f7f6e688dbcdee
