@@ -27,54 +27,9 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
-        try {
-            Enumeration<java.net.URL> roots = Thread.currentThread().getContextClassLoader().getResources("controllerpackage");
-            while (roots.hasMoreElements()) {
-                File dir = new File(URLDecoder.decode(roots.nextElement().getFile(), StandardCharsets.UTF_8));
-                scanClasses(dir, "controllerpackage");
-            }
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void scanClasses(File dir, String pkg) {
-        if (dir == null || !dir.exists()) return;
-        for (File f : dir.listFiles()) {
-            if (f.isDirectory()) {
-                scanClasses(f, pkg + (pkg.isEmpty() ? "" : ".") + f.getName());
-            } else if (f.getName().endsWith(".class")) {
-                try {
-                    String className = pkg + "." + f.getName().replace(".class", "");
-                    Class<?> clazz = Class.forName(className);
-                    if (clazz.isAnnotationPresent(Controller.class)) {
-                        controllers.add(clazz.getSimpleName());
-                        Object instance = clazz.getDeclaredConstructor().newInstance();
-                        controllerss.put(clazz.getSimpleName(), instance);
-                        for (Method m : clazz.getDeclaredMethods()) {
-                            if (m.isAnnotationPresent(com.framework.Mapping.UrlMapping.class)) {
-                                com.framework.Mapping.UrlMapping annotation = m.getAnnotation(com.framework.Mapping.UrlMapping.class);
-                                String url = annotation.value();
-                                String httpMethod = annotation.method();
-                                UrlMethod urlMethod = new UrlMethod(url, httpMethod);
-                                if (mappings.containsKey(urlMethod)) {
-                                    throw new DuplicateUrlException(
-                                        "Duplicate URL mapping: " + url + " with method " + httpMethod
-                                    );
-                                }
-                                mappings.put(urlMethod, new Methode(clazz.getSimpleName(), m.getName()));
-                            }
-                        }
-                    }
-                } catch (DuplicateUrlException e) {
-                    throw new RuntimeException(e);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+        controllers = (List<String>) getServletContext().getAttribute("controllers");
+        mappings = (Map<UrlMethod, Methode>) getServletContext().getAttribute("mappings");
+        controllerss = (Map<String, Object>) getServletContext().getAttribute("controllerss");
     }
 
     @Override
@@ -108,6 +63,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         String path = uri.substring(contexte.length());
         UrlMethod urlMethod = new UrlMethod(path, req.getMethod());
+        
         if (mappings.containsKey(urlMethod)) {
             Methode methode = mappings.get(urlMethod);
             String controllerName = methode.getClassName();
