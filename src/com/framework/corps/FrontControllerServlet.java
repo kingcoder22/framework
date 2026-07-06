@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,7 @@ import mg.itu.framework.controller.Controller;
 import mg.itu.framework.exception.DuplicateUrlException;
 import mg.itu.framework.mapping.Methode;
 import mg.itu.framework.mapping.UrlMethod;
+import mg.itu.framework.mapping.ModelAndView;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
@@ -34,6 +36,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        
         String uri = req.getRequestURI();
         String url = req.getRequestURL().toString();
         String chemin = req.getServletPath();
@@ -59,21 +62,34 @@ public class FrontControllerServlet extends HttpServlet {
 
         System.out.println("URI: " + uri + " | URL: " + url + " | Chemin: " + chemin);
 
+        out.println("DispatcherType = " + req.getDispatcherType());
+        out.println("URI = " + req.getRequestURI());
+        out.println("Forward URI = " +
+            req.getAttribute(RequestDispatcher.FORWARD_REQUEST_URI));
+
         out.println("<hr/><p>Genere par FrontControllerServlet</p></body></html>");
 
         String path = uri.substring(contexte.length());
         UrlMethod urlMethod = new UrlMethod(path, req.getMethod());
-        
+        out.println("path : " + path + "est vrai" +mappings.containsKey(urlMethod));
         if (mappings.containsKey(urlMethod)) {
             Methode methode = mappings.get(urlMethod);
             String controllerName = methode.getClassName();
             Object controller = controllerss.get(controllerName);
-            out.println("<p>URL trouve, Methode : </p> " + methode.getMethodName());
 
             try {
                 Class<?> clazz = controller.getClass();
                 Method method = clazz.getDeclaredMethod(methode.getMethodName());
-                method.invoke(controller);
+                ModelAndView model = (ModelAndView) method.invoke(controller);
+                
+                for(Map.Entry<String, Object> entry : model.getModel().entrySet()) {
+                    req.setAttribute(entry.getKey(), entry.getValue());
+                }
+                String cheminview = "/WEB-INF/view/" + model.getView() + ".jsp";
+                RequestDispatcher dispatcher = req.getRequestDispatcher(cheminview);
+                dispatcher.forward(req, resp);
+
+                return;
             } catch (Exception e) {
                 e.printStackTrace();
                 out.println("Erreur: " + e.getMessage());
