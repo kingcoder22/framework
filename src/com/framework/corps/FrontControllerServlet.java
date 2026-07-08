@@ -1,13 +1,9 @@
 package com.framework.corps;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,22 +12,26 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import mg.itu.framework.controller.Controller;
-import mg.itu.framework.exception.DuplicateUrlException;
 import mg.itu.framework.mapping.Methode;
-import mg.itu.framework.mapping.UrlMethod;
 import mg.itu.framework.mapping.ModelAndView;
+import mg.itu.framework.mapping.UrlMethod;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
     Map<UrlMethod, Methode> mappings = new HashMap<>();
     Map<String, Object> controllerss = new HashMap<>();
 
+    String viewPrefix;
+    String viewSuffix;
+
     @Override
     public void init() {
         controllers = (List<String>) getServletContext().getAttribute("controllers");
         mappings = (Map<UrlMethod, Methode>) getServletContext().getAttribute("mappings");
         controllerss = (Map<String, Object>) getServletContext().getAttribute("controllerss");
+
+        viewPrefix = getServletContext().getInitParameter("viewPrefix");
+        viewSuffix = getServletContext().getInitParameter("viewSuffix");
     }
 
     @Override
@@ -85,7 +85,7 @@ public class FrontControllerServlet extends HttpServlet {
                 for(Map.Entry<String, Object> entry : model.getModel().entrySet()) {
                     req.setAttribute(entry.getKey(), entry.getValue());
                 }
-                String cheminview = "/WEB-INF/view/" + model.getView() + ".jsp";
+                String cheminview = viewPrefix + model.getView() + viewSuffix;
                 RequestDispatcher dispatcher = req.getRequestDispatcher(cheminview);
                 dispatcher.forward(req, resp);
 

@@ -1,8 +1,8 @@
-mg\itu\framework\mapping\ModelAndView.class
-com\framework\Mapping\UrlMapping.class
-com\framework\corps\FrontControllerServlet.class
-mg\itu\framework\controller\Controller.class
-mg\itu\framework\mapping\Methode.class
-mg\itu\framework\exception\DuplicateUrlException.class
-mg\itu\framework\mapping\UrlMethod.class
-com\framework\corps\AppContextListener.class
+mg/itu/framework/exception/DuplicateUrlException.class
+mg/itu/framework/mapping/Methode.class
+com/framework/corps/FrontControllerServlet.class
+mg/itu/framework/mapping/UrlMethod.class
+com/framework/corps/AppContextListener.class
+com/framework/Mapping/UrlMapping.class
+mg/itu/framework/mapping/ModelAndView.class
+mg/itu/framework/controller/Controller.class
