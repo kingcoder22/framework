@@ -15,6 +15,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import mg.itu.framework.mapping.Methode;
 import mg.itu.framework.mapping.ModelAndView;
 import mg.itu.framework.mapping.UrlMethod;
+import com.framework.WebApi.WebApi;
+import com.google.gson.Gson;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
@@ -30,8 +32,8 @@ public class FrontControllerServlet extends HttpServlet {
         mappings = (Map<UrlMethod, Methode>) getServletContext().getAttribute("mappings");
         controllerss = (Map<String, Object>) getServletContext().getAttribute("controllerss");
 
-        viewPrefix = getServletContext().getInitParameter("viewPrefix");
-        viewSuffix = getServletContext().getInitParameter("viewSuffix");
+        viewPrefix = (String)getServletContext().getInitParameter("viewPrefix");
+        viewSuffix = (String)getServletContext().getInitParameter("viewSuffix");
     }
 
     @Override
@@ -46,55 +48,80 @@ public class FrontControllerServlet extends HttpServlet {
         resp.setContentType("text/html;charset=UTF-8");
         PrintWriter out = resp.getWriter();
 
-        out.println("<!DOCTYPE html><html><head><title>Front Controller</title></head><body>");
-        out.println("<h1>URL capturee par le Front Controller !</h1><hr/>");
-        out.println("<h2>Informations sur l'URL :</h2><ul>");
-        out.println("<li><strong>URI :</strong> " + uri + "</li>");
-        out.println("<li><strong>URL complete :</strong> " + url + "</li>");
-        out.println("<li><strong>Chemin :</strong> " + chemin + "</li>");
-        out.println("<li><strong>Contexte :</strong> " + contexte + "</li>");
-        out.println("<li><strong>Paramètres :</strong> " + (parametres != null ? parametres : "aucune") + "</li>");
-        out.println("</ul>");
+        // out.println("<!DOCTYPE html><html><head><title>Front Controller</title></head><body>");
+        // out.println("<h1>URL capturee par le Front Controller !</h1><hr/>");
+        // out.println("<h2>Informations sur l'URL :</h2><ul>");
+        // out.println("<li><strong>URI :</strong> " + uri + "</li>");
+        // out.println("<li><strong>URL complete :</strong> " + url + "</li>");
+        // out.println("<li><strong>Chemin :</strong> " + chemin + "</li>");
+        // out.println("<li><strong>Contexte :</strong> " + contexte + "</li>");
+        // out.println("<li><strong>Paramètres :</strong> " + (parametres != null ? parametres : "aucune") + "</li>");
+        // out.println("</ul>");
 
-        out.println("<h1> Liste des controllers</h1><ul>");
-        for (String c : controllers) out.println("<li>" + c + "</li>");
-        out.println("</ul>");
+        // out.println("<h1> Liste des controllers</h1><ul>");
+        // for (String c : controllers) out.println("<li>" + c + "</li>");
+        // out.println("</ul>");
 
-        System.out.println("URI: " + uri + " | URL: " + url + " | Chemin: " + chemin);
+        // System.out.println("URI: " + uri + " | URL: " + url + " | Chemin: " + chemin);
 
-        out.println("DispatcherType = " + req.getDispatcherType());
-        out.println("URI = " + req.getRequestURI());
-        out.println("Forward URI = " +
-            req.getAttribute(RequestDispatcher.FORWARD_REQUEST_URI));
+        // out.println("DispatcherType = " + req.getDispatcherType());
+        // out.println("URI = " + req.getRequestURI());
+        // out.println("Forward URI = " +
+        //     req.getAttribute(RequestDispatcher.FORWARD_REQUEST_URI));
 
-        out.println("<hr/><p>Genere par FrontControllerServlet</p></body></html>");
+        // out.println("<hr/><p>Genere par FrontControllerServlet</p></body></html>");
 
         String path = uri.substring(contexte.length());
+        path = path.replace("/app","");
         UrlMethod urlMethod = new UrlMethod(path, req.getMethod());
-        out.println("path : " + path + "est vrai" +mappings.containsKey(urlMethod));
+        // out.println("path : " + path + "est vrai" +mappings.containsKey(urlMethod));
+
+        for(Map.Entry<UrlMethod, Methode> entry : mappings.entrySet()) {
+            UrlMethod key = entry.getKey();
+            Methode value = entry.getValue();
+            // out.println("<p>URL : " + key.getUrl() + " - Méthode HTTP : " + key.getMethod() + " - Méthode Java : " + value.getMethodName() + "</p>");
+        }
         if (mappings.containsKey(urlMethod)) {
             Methode methode = mappings.get(urlMethod);
             String controllerName = methode.getClassName();
+            String nom_complet = "controllerpackage" + "." + controllerName;
             Object controller = controllerss.get(controllerName);
-
             try {
                 Class<?> clazz = controller.getClass();
                 Method method = clazz.getDeclaredMethod(methode.getMethodName());
-                ModelAndView model = (ModelAndView) method.invoke(controller);
-                
-                for(Map.Entry<String, Object> entry : model.getModel().entrySet()) {
-                    req.setAttribute(entry.getKey(), entry.getValue());
-                }
-                String cheminview = viewPrefix + model.getView() + viewSuffix;
-                RequestDispatcher dispatcher = req.getRequestDispatcher(cheminview);
-                dispatcher.forward(req, resp);
+                if(method.isAnnotationPresent(WebApi.class)) {
+                    Object result = method.invoke(controller);
+                    resp.setContentType("application/json;charset=UTF-8");
 
-                return;
-            } catch (Exception e) {
+                    Gson gson = new Gson();
+                    String json;
+
+                    if (result instanceof String) {
+                        json = gson.toJson(Map.of("message", result));
+                    } else {
+                        json = gson.toJson(result);
+                    }
+                    out.print(json);
+                    out.flush();
+                    return;
+                }else{
+                    ModelAndView model = (ModelAndView) method.invoke(controller);
+                    
+                    for(Map.Entry<String, Object> entry : model.getModel().entrySet()) {
+                        req.setAttribute(entry.getKey(), entry.getValue());
+                    }
+                    String cheminview = viewPrefix + "/" + model.getView() + viewSuffix;
+                    RequestDispatcher dispatcher = req.getRequestDispatcher(cheminview);
+                    dispatcher.forward(req, resp);
+
+                    return;
+                }} catch (Exception e) {
                 e.printStackTrace();
                 out.println("Erreur: " + e.getMessage());
             }
-        } else {
+            }
+            
+            else {
             out.println("<p>URLs disponibles:</p><ul>");
             for (String controllerr : controllers) {
                 out.println("<p>Controller : " + controllerr + "</p>");
