@@ -40,6 +40,8 @@ public class AppContextListener implements ServletContextListener {
         context.setAttribute("controllers", controllers);
         context.setAttribute("mappings", mappings);
         context.setAttribute("controllerss", controllerss);
+        context.setAttribute("viewPrefix", "/WEB-INF/view");
+        context.setAttribute("viewSuffix", ".jsp");
     }
 
     public void scanClasses(File dir, String pkg) {
