@@ -201,6 +201,7 @@ public class FrontControllerServlet extends HttpServlet {
                     construireObject(newobjet, req);
                     field.setAccessible(true);
                     field.set(objet, newobjet);
+                    int i = 0;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
