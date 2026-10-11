@@ -2,7 +2,9 @@ package com.framework.corps;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -86,26 +88,56 @@ public class FrontControllerServlet extends HttpServlet {
             String controllerName = methode.getClassName();
             String nom_complet = "controllerpackage" + "." + controllerName;
             Object controller = controllerss.get(controllerName);
+            Method methodereel = null;
             try {
                 Class<?> clazz = controller.getClass();
-                Method method = clazz.getDeclaredMethod(methode.getMethodName());
-                if(method.isAnnotationPresent(WebApi.class)) {
-                    Object result = method.invoke(controller);
+
+                for(Method method : clazz.getDeclaredMethods()){
+                    if(method.getName().equals(methode.getMethodName())){
+                        methodereel = method;
+                    }
+                }
+
+                Parameter[] arguments = methodereel.getParameters();
+                Object[] args = new Object[arguments.length];
+                
+                for (int i = 0; i < arguments.length; i++) {
+                    Class<?> typeParam = arguments[i].getType();
+                    String nomClasse = typeParam.getName();
+                    // out.print("Argument " + i + ": " + arguments[i].getName() + "<br>");
+                    if (typeParam.isPrimitive() || nomClasse.startsWith("java.") || nomClasse.startsWith("javax.")) {
+                        System.out.println("Argument " + i + ": " + arguments[i].getName() + " is primitive");
+                        System.out.println("voici le type de l'argument: " + arguments[i].getType());
+                        if(req.getParameterMap().containsKey(arguments[i].getName())) {
+                            args[i] = req.getParameter(arguments[i].getName());
+                        }
+                    } else {
+                        System.out.println("Argument " + i + ": " + arguments[i].getName() + " is not primitive");
+                        System.out.println("voici le type de l'argument: " + arguments[i].getType());
+                        Class<?> paramType = arguments[i].getType();
+                        Object paramObject = paramType.getDeclaredConstructor().newInstance();
+                        construireObject(paramObject, req);
+                        args[i] = paramObject;
+                    }
+                }
+                if(methodereel.isAnnotationPresent(WebApi.class)) {
+                    Object result = methodereel.invoke(controller, args);
                     resp.setContentType("application/json;charset=UTF-8");
 
                     Gson gson = new Gson();
                     String json;
 
                     if (result instanceof String) {
-                        json = gson.toJson(Map.of("message", result));
+                        json = (String) result;
                     } else {
                         json = gson.toJson(result);
                     }
+                    
                     out.print(json);
                     out.flush();
                     return;
-                }else{
-                    ModelAndView model = (ModelAndView) method.invoke(controller);
+                } else {
+                    ModelAndView model = (ModelAndView) methodereel.invoke(controller);
                     
                     for(Map.Entry<String, Object> entry : model.getModel().entrySet()) {
                         req.setAttribute(entry.getKey(), entry.getValue());
@@ -136,5 +168,43 @@ public class FrontControllerServlet extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         doGet(req, resp);
+    }
+    public void construireObject(Object objet, HttpServletRequest req){
+        // recuperer les attributs de l'objet et les valeurs des paramètres de la requête
+        // et les affecter aux attributs de l'objet
+        Class<?> clazz = objet.getClass();
+        Field[] fields = clazz.getDeclaredFields();
+        
+        for(Field field : fields){
+            if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
+                String paramName = field.getName();
+                if(req.getParameterMap().containsKey(paramName)){
+                    String paramValue = req.getParameter(paramName);
+                    try {
+                        field.setAccessible(true);
+                        if(field.getType() == int.class){
+                            field.setInt(objet, Integer.parseInt(paramValue));
+                        } else if(field.getType() == double.class){
+                            field.setDouble(objet, Double.parseDouble(paramValue));
+                        } else if(field.getType() == boolean.class){
+                            field.setBoolean(objet, Boolean.parseBoolean(paramValue));
+                        } else {
+                            field.set(objet, paramValue);
+                        }
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                try {
+                    Object newobjet = field.getType().getDeclaredConstructor().newInstance();
+                    construireObject(newobjet, req);
+                    field.setAccessible(true);
+                    field.set(objet, newobjet);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
