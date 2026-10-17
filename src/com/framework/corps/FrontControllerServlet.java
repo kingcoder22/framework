@@ -11,9 +11,11 @@ import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 import mg.itu.framework.mapping.Methode;
 import mg.itu.framework.mapping.ModelAndView;
 import mg.itu.framework.mapping.UrlMethod;
@@ -25,7 +27,9 @@ import java.lang.reflect.Type;
 import java.util.Enumeration;
 import java.util.Set;
 import java.util.HashSet;
+import mg.itu.framework.File.FileUpload;
 
+@MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
     Map<UrlMethod, Methode> mappings = new HashMap<>();
@@ -147,14 +151,41 @@ public class FrontControllerServlet extends HttpServlet {
                             System.err.println("Type de la collection : " + collection.getClass().getName());
                             System.err.println("Type des éléments de la collection : " + elementClass.getName());
                             args[i] = collection;
-                        }else {
+                        } else{
                             System.out.println("Argument " + i + ": " + arguments[i].getName() + " is primitive");
                             System.out.println("voici le type de l'argument: " + arguments[i].getType());
                             if(req.getParameterMap().containsKey(arguments[i].getName())) {
                                 args[i] = req.getParameter(arguments[i].getName());
                             }
                         }
-                    } else {
+                    } else if(typeParam == FileUpload.class){
+                            Part filePart = req.getPart(arguments[i].getName());
+                            if (filePart != null) {
+                                String filenom = filePart.getSubmittedFileName();
+                                String fileType = filePart.getContentType();
+                                long fileSize = filePart.getSize();
+                                byte[] fileData = new byte[(int) fileSize];
+                                filePart.getInputStream().read(fileData);
+                                FileUpload fileUpload = new FileUpload(filenom, fileType, fileSize, fileData);
+                                args[i] = fileUpload;
+                            }
+                        }else if(typeParam == FileUpload[].class){
+                            final String nomargument = arguments[i].getName();
+                            Part[] fileParts = req.getParts().stream()
+                                .filter(part -> part.getName().equals(nomargument))
+                                .toArray(Part[]::new);
+                            FileUpload[] fileUploads = new FileUpload[fileParts.length];
+                            for (int j = 0; j < fileParts.length; j++) {
+                                Part filePart = fileParts[j];
+                                String filenom = filePart.getSubmittedFileName();
+                                String fileType = filePart.getContentType();
+                                long fileSize = filePart.getSize();
+                                byte[] fileData = new byte[(int) fileSize];
+                                filePart.getInputStream().read(fileData);
+                                fileUploads[j] = new FileUpload(filenom, fileType, fileSize, fileData);
+                            }
+                            args[i] = fileUploads;
+                        } else {
                         System.out.println("Argument " + i + ": " + arguments[i].getName() + " is not primitive");
                         System.out.println("voici le type de l'argument: " + arguments[i].getType());
                         Class<?> paramType = arguments[i].getType();
@@ -219,8 +250,9 @@ public class FrontControllerServlet extends HttpServlet {
         for(Field field : fields){
             if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
                 String paramName = field.getName();
-                if(req.getParameterMap().containsKey(paramName)){
-                    String paramValue = req.getParameter(paramName);
+                String paramFullName = clazz.getSimpleName() + "." + paramName;
+                if(req.getParameterMap().containsKey(paramFullName)){
+                    String paramValue = req.getParameter(paramFullName);
                     try {
                         field.setAccessible(true);
                         if(field.getType() == int.class){
@@ -235,6 +267,62 @@ public class FrontControllerServlet extends HttpServlet {
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     }
+                }
+            } else if(field.getType() == FileUpload.class){
+                Part filePart = null;
+                String nomComplet = clazz.getSimpleName() + "." + field.getName();
+                try {
+                    filePart = req.getPart(nomComplet);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                if (filePart != null) {
+                    String filenom = filePart.getSubmittedFileName();
+                    String fileType = filePart.getContentType();
+                    long fileSize = filePart.getSize();
+                    byte[] fileData = new byte[(int) fileSize];
+                    try {
+                        filePart.getInputStream().read(fileData);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    FileUpload fileUpload = new FileUpload(filenom, fileType, fileSize, fileData);
+                    try {
+                        field.setAccessible(true);
+                        field.set(objet, fileUpload);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else if(field.getType() == FileUpload[].class){
+                final String nomargument = clazz.getSimpleName() + "." + field.getName();
+                Part[] fileParts = null;
+                try {
+                    fileParts = req.getParts().stream()
+                        .filter(part -> part.getName().equals(nomargument))
+                        .toArray(Part[]::new);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                FileUpload[] fileUploads = new FileUpload[fileParts.length];
+                for (int j = 0; j < fileParts.length; j++) {
+                    Part filePart = fileParts[j];
+                    String filenom = filePart.getSubmittedFileName();
+                    String fileType = filePart.getContentType();
+                    long fileSize = filePart.getSize();
+                    byte[] fileData = new byte[(int) fileSize];
+                    try {
+                        filePart.getInputStream().read(fileData);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    fileUploads[j] = new FileUpload(filenom, fileType, fileSize, fileData);
+                }
+                try {
+                    field.setAccessible(true);
+                    field.set(objet, fileUploads);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
                 }
             } else {
                 try {
@@ -256,8 +344,9 @@ public class FrontControllerServlet extends HttpServlet {
         for(Field field : fields){
             if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
                 String paramName = field.getName();
-                if(paramMap.containsKey(paramName)){
-                    String paramValue = paramMap.get(paramName)[0];
+                String paramFullName = clazz.getSimpleName() + "." + paramName;
+                if(paramMap.containsKey(paramFullName)){
+                    String paramValue = paramMap.get(paramFullName)[0];
                     try {
                         field.setAccessible(true);
                         if(field.getType() == int.class){

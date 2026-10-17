@@ -6,4 +6,5 @@ mg\itu\framework\controller\Controller.class
 mg\itu\framework\mapping\Methode.class
 mg\itu\framework\exception\DuplicateUrlException.class
 mg\itu\framework\mapping\UrlMethod.class
+mg\itu\framework\File\FileUpload.class
 com\framework\corps\AppContextListener.class
