@@ -19,6 +19,12 @@ import mg.itu.framework.mapping.ModelAndView;
 import mg.itu.framework.mapping.UrlMethod;
 import com.framework.WebApi.WebApi;
 import com.google.gson.Gson;
+import java.util.Collection;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.Enumeration;
+import java.util.Set;
+import java.util.HashSet;
 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
@@ -106,10 +112,47 @@ public class FrontControllerServlet extends HttpServlet {
                     String nomClasse = typeParam.getName();
                     // out.print("Argument " + i + ": " + arguments[i].getName() + "<br>");
                     if (typeParam.isPrimitive() || nomClasse.startsWith("java.") || nomClasse.startsWith("javax.")) {
-                        System.out.println("Argument " + i + ": " + arguments[i].getName() + " is primitive");
-                        System.out.println("voici le type de l'argument: " + arguments[i].getType());
-                        if(req.getParameterMap().containsKey(arguments[i].getName())) {
-                            args[i] = req.getParameter(arguments[i].getName());
+                        if (typeParam.isArray()) {
+                            Class<?> typeElement = typeParam.getComponentType();
+                            System.out.println("Type des éléments : "
+                                + typeElement.getName());
+                            Collection<Object> collection = new ArrayList<>();
+                            construireCollectionFromMap(collection, typeElement.getDeclaredConstructor().newInstance(), req);
+                            args[i] = collection;
+
+                        } else if (Collection.class.isAssignableFrom(typeParam)) {
+
+                            Type genericType = arguments[i].getParameterizedType();
+                            ParameterizedType paramType = (ParameterizedType) genericType;
+
+                            Type typeElement = paramType.getActualTypeArguments()[0];
+                            Class<?> elementClass = (Class<?>) typeElement;
+
+
+                            Object object = elementClass
+                                .getDeclaredConstructor()
+                                .newInstance();
+                            Collection<Object> collection;
+
+                            if(List.class.isAssignableFrom(typeParam)) {
+                                collection = new ArrayList<>();
+                            } else if(Set.class.isAssignableFrom(typeParam)) {
+                                collection = new HashSet<>();
+                            } else {
+                                collection = (Collection<Object>)
+                                    typeParam.getDeclaredConstructor().newInstance();
+                            }
+                            construireCollectionFromMap(collection, object, req);
+                            System.err.println("Taille de la collection construite : " + collection.size());
+                            System.err.println("Type de la collection : " + collection.getClass().getName());
+                            System.err.println("Type des éléments de la collection : " + elementClass.getName());
+                            args[i] = collection;
+                        }else {
+                            System.out.println("Argument " + i + ": " + arguments[i].getName() + " is primitive");
+                            System.out.println("voici le type de l'argument: " + arguments[i].getType());
+                            if(req.getParameterMap().containsKey(arguments[i].getName())) {
+                                args[i] = req.getParameter(arguments[i].getName());
+                            }
                         }
                     } else {
                         System.out.println("Argument " + i + ": " + arguments[i].getName() + " is not primitive");
@@ -170,8 +213,6 @@ public class FrontControllerServlet extends HttpServlet {
         doGet(req, resp);
     }
     public void construireObject(Object objet, HttpServletRequest req){
-        // recuperer les attributs de l'objet et les valeurs des paramètres de la requête
-        // et les affecter aux attributs de l'objet
         Class<?> clazz = objet.getClass();
         Field[] fields = clazz.getDeclaredFields();
         
@@ -207,5 +248,86 @@ public class FrontControllerServlet extends HttpServlet {
                 }
             }
         }
+    }
+    public void construireObjectFromMap(Object objet, Map<String, String[]> paramMap){
+        Class<?> clazz = objet.getClass();
+        Field[] fields = clazz.getDeclaredFields();
+        
+        for(Field field : fields){
+            if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
+                String paramName = field.getName();
+                if(paramMap.containsKey(paramName)){
+                    String paramValue = paramMap.get(paramName)[0];
+                    try {
+                        field.setAccessible(true);
+                        if(field.getType() == int.class){
+                            field.setInt(objet, Integer.parseInt(paramValue));
+                        } else if(field.getType() == double.class){
+                            field.setDouble(objet, Double.parseDouble(paramValue));
+                        } else if(field.getType() == boolean.class){
+                            field.setBoolean(objet, Boolean.parseBoolean(paramValue));
+                        } else {
+                            field.set(objet, paramValue);
+                        }
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                try {
+                    Object newobjet = field.getType().getDeclaredConstructor().newInstance();
+                    construireObjectFromMap(newobjet, paramMap);
+                    field.setAccessible(true);
+                    field.set(objet, newobjet);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    public void construireCollectionFromMap(Collection<Object> collection, Object o, HttpServletRequest req){
+        Enumeration<String> noms = req.getParameterNames();
+        int index = 0;
+        int taille = 0;
+        List<String> listeNoms = new ArrayList<>();
+        while (noms.hasMoreElements()) {
+            taille++;
+            listeNoms.add(noms.nextElement());
+        }
+        System.err.println("Taille de la collection : " + taille);
+        while (index < taille) {
+            int indexTemp = 0;
+            Object newobjet = null;
+            try {
+                newobjet = o.getClass().getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            for (String nom: listeNoms) {
+                String nomTemp = nom;
+                if (nom.endsWith("[]")) {
+                    nom = nom.substring(0, nom.length() - 2);
+                }
+                System.err.println("Nom du paramètre : " + nom);
+
+                String[] valeurs = req.getParameterValues(nomTemp);
+                String[] map = {valeurs[indexTemp]};
+                System.err.println("Valeur du paramètre : " + map[0]);
+                Map<String, String[]> mapTemp = new HashMap<>();
+                mapTemp.put(nom, map);
+                System.err.println("Taille du tableau de valeurs : " + map.length);
+                if(map.length > 0){
+                    try {
+                        construireObjectFromMap(newobjet, mapTemp);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    indexTemp++;
+                }
+            }
+            collection.add(newobjet);
+            index++;
+    }
+    System.err.println("Taille de la collection après construction : " + collection.size());
     }
 }
