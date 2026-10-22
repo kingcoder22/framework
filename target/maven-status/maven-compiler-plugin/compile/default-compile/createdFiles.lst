@@ -1,6 +1,7 @@
 mg\itu\framework\mapping\ModelAndView.class
 com\framework\Mapping\UrlMapping.class
 com\framework\WebApi\WebApi.class
+mg\itu\framework\Session\Session.class
 com\framework\corps\FrontControllerServlet.class
 mg\itu\framework\controller\Controller.class
 mg\itu\framework\mapping\Methode.class

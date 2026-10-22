@@ -14,6 +14,7 @@ import mg.itu.framework.controller.Controller;
 import mg.itu.framework.exception.DuplicateUrlException;
 import mg.itu.framework.mapping.Methode;
 import mg.itu.framework.mapping.UrlMethod;
+import mg.itu.framework.Session.Session;
     
 @WebListener
 public class AppContextListener implements ServletContextListener {
@@ -42,6 +43,7 @@ public class AppContextListener implements ServletContextListener {
         context.setAttribute("controllerss", controllerss);
         context.setAttribute("viewPrefix", "/WEB-INF/view");
         context.setAttribute("viewSuffix", ".jsp");
+        context.setAttribute("sessions", new HashMap<String, Session>());
     }
 
     public void scanClasses(File dir, String pkg) {
