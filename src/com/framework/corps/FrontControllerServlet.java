@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
@@ -28,6 +29,7 @@ import java.util.Enumeration;
 import java.util.Set;
 import java.util.HashSet;
 import mg.itu.framework.File.FileUpload;
+import mg.itu.framework.Session.Session;
 
 @MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
@@ -169,7 +171,7 @@ public class FrontControllerServlet extends HttpServlet {
                                 FileUpload fileUpload = new FileUpload(filenom, fileType, fileSize, fileData);
                                 args[i] = fileUpload;
                             }
-                        }else if(typeParam == FileUpload[].class){
+                    }else if(typeParam == FileUpload[].class){
                             final String nomargument = arguments[i].getName();
                             Part[] fileParts = req.getParts().stream()
                                 .filter(part -> part.getName().equals(nomargument))
@@ -185,7 +187,15 @@ public class FrontControllerServlet extends HttpServlet {
                                 fileUploads[j] = new FileUpload(filenom, fileType, fileSize, fileData);
                             }
                             args[i] = fileUploads;
-                        } else {
+                    } else if(typeParam == Session.class){
+                        Map<String, Session> sessions = (Map<String, Session>) getServletContext().getAttribute("sessions");
+                        // verifier si dans la session on a deja l'id du session comme cle
+                        if(!sessions.containsKey(req.getSession().getId())){
+                            sessions.put(req.getSession().getId(), new Session(req.getSession()));
+                        }
+                        Session session = sessions.get(req.getSession().getId());
+                        args[i] = session;
+                    } else {
                         System.out.println("Argument " + i + ": " + arguments[i].getName() + " is not primitive");
                         System.out.println("voici le type de l'argument: " + arguments[i].getType());
                         Class<?> paramType = arguments[i].getType();
