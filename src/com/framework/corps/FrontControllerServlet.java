@@ -30,7 +30,8 @@ import java.util.Set;
 import java.util.HashSet;
 import mg.itu.framework.File.FileUpload;
 import mg.itu.framework.Session.Session;
-
+import com.framework.Authentification.Authentification;
+import com.framework.Utilitaire.Constructeur;
 @MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
@@ -123,7 +124,7 @@ public class FrontControllerServlet extends HttpServlet {
                             System.out.println("Type des éléments : "
                                 + typeElement.getName());
                             Collection<Object> collection = new ArrayList<>();
-                            construireCollectionFromMap(collection, typeElement.getDeclaredConstructor().newInstance(), req);
+                            Constructeur.construireCollectionFromMap(collection, typeElement.getDeclaredConstructor().newInstance(), req);
                             args[i] = collection;
 
                         } else if (Collection.class.isAssignableFrom(typeParam)) {
@@ -148,7 +149,7 @@ public class FrontControllerServlet extends HttpServlet {
                                 collection = (Collection<Object>)
                                     typeParam.getDeclaredConstructor().newInstance();
                             }
-                            construireCollectionFromMap(collection, object, req);
+                            Constructeur.construireCollectionFromMap(collection, object, req);
                             System.err.println("Taille de la collection construite : " + collection.size());
                             System.err.println("Type de la collection : " + collection.getClass().getName());
                             System.err.println("Type des éléments de la collection : " + elementClass.getName());
@@ -189,7 +190,7 @@ public class FrontControllerServlet extends HttpServlet {
                             args[i] = fileUploads;
                     } else if(typeParam == Session.class){
                         Map<String, Session> sessions = (Map<String, Session>) getServletContext().getAttribute("sessions");
-                        // verifier si dans la session on a deja l'id du session comme cle
+                        // verifiena raha misy session efa misy ho an'ny session id an'ny mpampiasa
                         if(!sessions.containsKey(req.getSession().getId())){
                             sessions.put(req.getSession().getId(), new Session(req.getSession()));
                         }
@@ -200,8 +201,23 @@ public class FrontControllerServlet extends HttpServlet {
                         System.out.println("voici le type de l'argument: " + arguments[i].getType());
                         Class<?> paramType = arguments[i].getType();
                         Object paramObject = paramType.getDeclaredConstructor().newInstance();
-                        construireObject(paramObject, req);
+                        // construction anle objet hiparametrena avy amin'ny parametres an'ny request
+                        Constructeur.construireObject(paramObject, req);
                         args[i] = paramObject;
+                    }
+                }
+                if(methodereel.isAnnotationPresent(Authentification.class)) {
+                    Authentification annotation = methodereel.getAnnotation(Authentification.class);
+                    String valSession = annotation.valSession();
+                    String redirectTo = annotation.redirectTo();
+                    Map<String, Session> sessions = (Map<String, Session>) getServletContext().getAttribute("sessions");
+                    if(!sessions.containsKey(req.getSession().getId())){
+                        sessions.put(req.getSession().getId(), new Session(req.getSession()));
+                    }
+                    Session session = sessions.get(req.getSession().getId());
+                    if(session.getAttribut(valSession) == null){
+                        resp.sendRedirect(contexte + redirectTo);
+                        return;
                     }
                 }
                 if(methodereel.isAnnotationPresent(WebApi.class)) {
@@ -253,180 +269,5 @@ public class FrontControllerServlet extends HttpServlet {
     public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         doGet(req, resp);
     }
-    public void construireObject(Object objet, HttpServletRequest req){
-        Class<?> clazz = objet.getClass();
-        Field[] fields = clazz.getDeclaredFields();
-        
-        for(Field field : fields){
-            if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
-                String paramName = field.getName();
-                String paramFullName = clazz.getSimpleName() + "." + paramName;
-                if(req.getParameterMap().containsKey(paramFullName)){
-                    String paramValue = req.getParameter(paramFullName);
-                    try {
-                        field.setAccessible(true);
-                        if(field.getType() == int.class){
-                            field.setInt(objet, Integer.parseInt(paramValue));
-                        } else if(field.getType() == double.class){
-                            field.setDouble(objet, Double.parseDouble(paramValue));
-                        } else if(field.getType() == boolean.class){
-                            field.setBoolean(objet, Boolean.parseBoolean(paramValue));
-                        } else {
-                            field.set(objet, paramValue);
-                        }
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-            } else if(field.getType() == FileUpload.class){
-                Part filePart = null;
-                String nomComplet = clazz.getSimpleName() + "." + field.getName();
-                try {
-                    filePart = req.getPart(nomComplet);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                if (filePart != null) {
-                    String filenom = filePart.getSubmittedFileName();
-                    String fileType = filePart.getContentType();
-                    long fileSize = filePart.getSize();
-                    byte[] fileData = new byte[(int) fileSize];
-                    try {
-                        filePart.getInputStream().read(fileData);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    FileUpload fileUpload = new FileUpload(filenom, fileType, fileSize, fileData);
-                    try {
-                        field.setAccessible(true);
-                        field.set(objet, fileUpload);
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-            } else if(field.getType() == FileUpload[].class){
-                final String nomargument = clazz.getSimpleName() + "." + field.getName();
-                Part[] fileParts = null;
-                try {
-                    fileParts = req.getParts().stream()
-                        .filter(part -> part.getName().equals(nomargument))
-                        .toArray(Part[]::new);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                FileUpload[] fileUploads = new FileUpload[fileParts.length];
-                for (int j = 0; j < fileParts.length; j++) {
-                    Part filePart = fileParts[j];
-                    String filenom = filePart.getSubmittedFileName();
-                    String fileType = filePart.getContentType();
-                    long fileSize = filePart.getSize();
-                    byte[] fileData = new byte[(int) fileSize];
-                    try {
-                        filePart.getInputStream().read(fileData);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    fileUploads[j] = new FileUpload(filenom, fileType, fileSize, fileData);
-                }
-                try {
-                    field.setAccessible(true);
-                    field.set(objet, fileUploads);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                try {
-                    Object newobjet = field.getType().getDeclaredConstructor().newInstance();
-                    construireObject(newobjet, req);
-                    field.setAccessible(true);
-                    field.set(objet, newobjet);
-                    int i = 0;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-    public void construireObjectFromMap(Object objet, Map<String, String[]> paramMap){
-        Class<?> clazz = objet.getClass();
-        Field[] fields = clazz.getDeclaredFields();
-        
-        for(Field field : fields){
-            if(field.getType().isPrimitive() || field.getType().getName().startsWith("java.") || field.getType().getName().startsWith("javax.")){
-                String paramName = field.getName();
-                String paramFullName = clazz.getSimpleName() + "." + paramName;
-                if(paramMap.containsKey(paramFullName)){
-                    String paramValue = paramMap.get(paramFullName)[0];
-                    try {
-                        field.setAccessible(true);
-                        if(field.getType() == int.class){
-                            field.setInt(objet, Integer.parseInt(paramValue));
-                        } else if(field.getType() == double.class){
-                            field.setDouble(objet, Double.parseDouble(paramValue));
-                        } else if(field.getType() == boolean.class){
-                            field.setBoolean(objet, Boolean.parseBoolean(paramValue));
-                        } else {
-                            field.set(objet, paramValue);
-                        }
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-            } else {
-                try {
-                    Object newobjet = field.getType().getDeclaredConstructor().newInstance();
-                    construireObjectFromMap(newobjet, paramMap);
-                    field.setAccessible(true);
-                    field.set(objet, newobjet);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-    public void construireCollectionFromMap(Collection<Object> collection, Object o, HttpServletRequest req){
-        Enumeration<String> noms = req.getParameterNames();
-        int index = 0;
-        int taille = 0;
-        List<String> listeNoms = new ArrayList<>();
-        while (noms.hasMoreElements()) {
-            taille++;
-            listeNoms.add(noms.nextElement());
-        }
-        System.err.println("Taille de la collection : " + taille);
-        while (index < taille) {
-            int indexTemp = 0;
-            Object newobjet = null;
-            try {
-                newobjet = o.getClass().getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            for (String nom: listeNoms) {
-                String nomTemp = nom;
-                if (nom.endsWith("[]")) {
-                    nom = nom.substring(0, nom.length() - 2);
-                }
-                System.err.println("Nom du paramètre : " + nom);
-
-                String[] valeurs = req.getParameterValues(nomTemp);
-                String[] map = {valeurs[indexTemp]};
-                System.err.println("Valeur du paramètre : " + map[0]);
-                Map<String, String[]> mapTemp = new HashMap<>();
-                mapTemp.put(nom, map);
-                System.err.println("Taille du tableau de valeurs : " + map.length);
-                if(map.length > 0){
-                    try {
-                        construireObjectFromMap(newobjet, mapTemp);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    indexTemp++;
-                }
-            }
-            collection.add(newobjet);
-            index++;
-    }
-    System.err.println("Taille de la collection après construction : " + collection.size());
-    }
+    
 }
