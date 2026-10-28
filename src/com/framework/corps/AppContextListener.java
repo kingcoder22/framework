@@ -44,6 +44,8 @@ public class AppContextListener implements ServletContextListener {
         context.setAttribute("viewPrefix", "/WEB-INF/view");
         context.setAttribute("viewSuffix", ".jsp");
         context.setAttribute("sessions", new HashMap<String, Session>());
+        boolean isauthentification = false;
+        context.setAttribute("isauthentification", isauthentification);
     }
 
     public void scanClasses(File dir, String pkg) {

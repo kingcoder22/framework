@@ -32,12 +32,13 @@ import mg.itu.framework.File.FileUpload;
 import mg.itu.framework.Session.Session;
 import com.framework.Authentification.Authentification;
 import com.framework.Utilitaire.Constructeur;
+import com.framework.Role.*;
 @MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
     List<String> controllers = new ArrayList<>();
     Map<UrlMethod, Methode> mappings = new HashMap<>();
     Map<String, Object> controllerss = new HashMap<>();
-
+    boolean isauthentification;
     String viewPrefix;
     String viewSuffix;
 
@@ -49,6 +50,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         viewPrefix = (String)getServletContext().getInitParameter("viewPrefix");
         viewSuffix = (String)getServletContext().getInitParameter("viewSuffix");
+        isauthentification = (boolean)getServletContext().getAttribute("isauthentification");
     }
 
     @Override
@@ -218,6 +220,39 @@ public class FrontControllerServlet extends HttpServlet {
                     if(session.getAttribut(valSession) == null){
                         resp.sendRedirect(contexte + redirectTo);
                         return;
+                    }
+                    isauthentification = true;
+                }
+                if(isauthentification){
+                    if(methodereel.isAnnotationPresent(RoleAuth.class)){
+                        com.framework.Role.RoleAuth annotation = methodereel.getAnnotation(RoleAuth.class);
+                        String valSession = annotation.valSession();
+                        String[] roles = annotation.roles();
+                        Map<String, Session> sessions = (Map<String, Session>) getServletContext().getAttribute("sessions");
+                        if(!sessions.containsKey(req.getSession().getId())){
+                            sessions.put(req.getSession().getId(), new Session(req.getSession()));
+                        }
+                        Session session = sessions.get(req.getSession().getId());
+                        Object roleObject = session.getAttribut(valSession);
+                        if(roleObject == null){
+                            // afficher message d'erreur
+                            out.println("<p>Vous n'avez pas le rôle requis pour accéder à cette ressource.</p>");
+                            return;
+                        }
+                        String role = roleObject.toString();
+                        boolean hasRole = false;
+                        for(String r : roles){
+                            if(r.equals(role)){
+                                hasRole = true;
+                                break;
+                            }
+                        }
+                        if(!hasRole){
+                            // afficher message d'erreur
+                            out.println("<p>Vous n'avez pas le rôle requis pour accéder à cette ressource.</p>");
+                            resp.sendRedirect(contexte + "/login");
+                            return;
+                        }
                     }
                 }
                 if(methodereel.isAnnotationPresent(WebApi.class)) {
