@@ -106,7 +106,7 @@ public class FrontControllerServlet extends HttpServlet {
             Method methodereel = null;
             try {
                 Class<?> clazz = controller.getClass();
-
+                int i = 0;
                 for(Method method : clazz.getDeclaredMethods()){
                     if(method.getName().equals(methode.getMethodName())){
                         methodereel = method;
